@@ -15,6 +15,7 @@ import {
 } from '../components/ReportUI';
 import { adaptAnnual } from '../../shared/annual';
 import { AnnualExtras } from './AnnualExtras';
+import { AnnualTrendCharts } from '../components/AnnualTrendCharts';
 
 const list = (v: any): any[] => (Array.isArray(v) ? v : []);
 const periodNames: Record<string, string> = {
@@ -181,42 +182,13 @@ export function AnnualPage({ insights, demo, state, reload, notify, index }: Pag
           </div>
           <Panel
             title="历年时长与听歌计数"
-            caption="两个纵轴分别展示时长和官方计数；不把年度计数相加解释为不同歌曲总数"
+            caption="上图为时长，下图为官方计数，按同一组年份对齐；每个指标独立标注单位与数值"
           >
-            <Chart
-              height={300}
-              option={{
-                tooltip: { trigger: 'axis', valueFormatter: (value: number) => num(value, 1) },
-                legend: { bottom: 0, data: [`时长（${unitName}）`, '官方年度计数'] },
-                grid: { top: 25, left: 65, right: 65, bottom: 60 },
-                xAxis: {
-                  type: 'category',
-                  data: years.map((y) => String(y.year)),
-                  axisTick: { show: false },
-                  axisLine: { show: false },
-                },
-                yAxis: [
-                  { type: 'value', name: unitName, splitLine: { lineStyle: { color: '#eef2ef' } } },
-                  { type: 'value', name: '计数', splitLine: { show: false } },
-                ],
-                series: [
-                  {
-                    name: `时长（${unitName}）`,
-                    type: 'bar',
-                    data: trend,
-                    barMaxWidth: 36,
-                    itemStyle: { color: '#83b39d', borderRadius: [4, 4, 0, 0] },
-                  },
-                  {
-                    name: '官方年度计数',
-                    type: 'line',
-                    yAxisIndex: 1,
-                    data: years.map((y) => y.count),
-                    itemStyle: { color: '#cfaa77' },
-                    lineStyle: { width: 2 },
-                  },
-                ],
-              }}
+            <AnnualTrendCharts
+              years={years.map((y) => y.year)}
+              durations={trend}
+              counts={years.map((y) => y.count)}
+              durationUnit={unitName}
             />
             <div className="table-scroll">
               <table>

@@ -4,6 +4,45 @@
   border-bottom: 1px solid #e1eae4;
   margin-bottom: 22px;
 }
+.annual-trend-scroll {
+  overflow-x: auto;
+}
+.annual-trend-block {
+  padding-top: 8px;
+}
+.annual-trend-block + .annual-trend-block {
+  border-top: 1px solid #edf1ee;
+}
+.annual-trend-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 38px 0 30px;
+  font-size: 11px;
+  color: #617e69;
+}
+.annual-trend-heading > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.annual-trend-heading i {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #83b39d;
+}
+.annual-trend-heading i.count-dot {
+  border-radius: 50%;
+  background: #cfaa77;
+}
+.annual-trend-heading small {
+  font-size: 10px;
+  color: #98a599;
+}
 .available-annuals {
   display: flex;
   align-items: center;

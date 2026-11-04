@@ -21,7 +21,15 @@ echarts.use([
   VisualMapComponent,
   CanvasRenderer,
 ]);
-export function Chart({ option, height = 260 }: { option: any; height?: number }) {
+export function Chart({
+  option,
+  height = 260,
+  label = '统计图表，可通过对应列表查看详细数据',
+}: {
+  option: any;
+  height?: number;
+  label?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const chart = echarts.init(ref.current!);
@@ -36,14 +44,7 @@ export function Chart({ option, height = 260 }: { option: any; height?: number }
       chart.dispose();
     };
   }, [option]);
-  return (
-    <div
-      ref={ref}
-      style={{ height, width: '100%' }}
-      role="img"
-      aria-label="统计图表，可通过对应列表查看详细数据"
-    />
-  );
+  return <div ref={ref} style={{ height, width: '100%' }} role="img" aria-label={label} />;
 }
 export const colors = ['#238574', '#87b9a3', '#f0b576', '#8a9eb5', '#b6acd4', '#c7d3c8'];
 export function barOption(data: { name: string; value: number }[], horizontal = true) {
