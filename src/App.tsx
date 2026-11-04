@@ -130,7 +130,9 @@ export function App() {
   const [login, setLogin] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  useEffect(() => window.scrollTo(0, 0), [page]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [page]);
   const suffix = demo ? '?demo=1' : '';
   const reload = useCallback(async () => {
     try {
