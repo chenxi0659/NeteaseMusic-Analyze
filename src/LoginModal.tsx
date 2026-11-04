@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Disc3, LockKeyhole, X } from 'lucide-react';
+import { Disc3, LockKeyhole, ExternalLink, X } from 'lucide-react';
 import type { AppState } from '../shared/types';
 import { post } from './api';
 import './login.css';
@@ -15,16 +15,26 @@ export function LoginModal({
   notify: (message: string) => void;
   profile: AppState['profile'] | undefined;
 }) {
-  const [method, setMethod] = useState<'password' | 'qr'>('password');
+  const [method, setMethod] = useState<'password' | 'qr' | 'session'>('password');
   const [accountType, setAccountType] = useState('phone');
   const [account, setAccount] = useState('');
   const [countrycode, setCountrycode] = useState('86');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState<number>();
+  const [cookie, setCookie] = useState('');
   const [busy, setBusy] = useState(false);
   const [qr, setQr] = useState<{ key: string; image: string } | null>(null);
   const [message, setMessage] = useState('点击生成二维码，使用网易云音乐 App 扫码');
   const [expired, setExpired] = useState(false);
+
+  function switchMethod(next: typeof method) {
+    setMethod(next);
+    setError('');
+    setErrorCode(undefined);
+    setPassword('');
+    setCookie('');
+  }
 
   useEffect(() => {
     if (method !== 'qr' || !qr || expired) return;
@@ -49,6 +59,7 @@ export function LoginModal({
       } catch (e: any) {
         if (!stopped) {
           setMessage(e.message);
+          setErrorCode(e.code);
           setExpired(true);
           return;
         }
@@ -70,6 +81,7 @@ export function LoginModal({
       setMessage('等待扫码，请使用网易云音乐 App');
     } catch (e: any) {
       setMessage(e.message);
+      setErrorCode(e.code);
     } finally {
       setBusy(false);
     }
@@ -78,14 +90,33 @@ export function LoginModal({
   async function submitPassword(event: FormEvent) {
     event.preventDefault();
     setError('');
+    setErrorCode(undefined);
     setBusy(true);
     try {
       await post('/auth/password', { accountType, account, password, countrycode });
       onSuccess();
     } catch (e: any) {
       setError(e.message);
+      setErrorCode(e.code);
     } finally {
       setPassword('');
+      setBusy(false);
+    }
+  }
+
+  async function submitSession(event: FormEvent) {
+    event.preventDefault();
+    setError('');
+    setErrorCode(undefined);
+    setBusy(true);
+    try {
+      await post('/auth/session', { cookie });
+      onSuccess();
+    } catch (e: any) {
+      setError(e.message);
+      setErrorCode(e.code);
+    } finally {
+      setCookie('');
       setBusy(false);
     }
   }
@@ -143,7 +174,7 @@ export function LoginModal({
             aria-selected={method === 'password'}
             disabled={busy}
             className={method === 'password' ? 'active' : ''}
-            onClick={() => setMethod('password')}
+            onClick={() => switchMethod('password')}
           >
             账号密码
           </button>
@@ -152,9 +183,18 @@ export function LoginModal({
             aria-selected={method === 'qr'}
             disabled={busy}
             className={method === 'qr' ? 'active' : ''}
-            onClick={() => setMethod('qr')}
+            onClick={() => switchMethod('qr')}
           >
             扫码登录
+          </button>
+          <button
+            role="tab"
+            aria-selected={method === 'session'}
+            disabled={busy}
+            className={method === 'session' ? 'active' : ''}
+            onClick={() => switchMethod('session')}
+          >
+            网页登录会话
           </button>
         </div>
         {method === 'password' ? (
@@ -168,6 +208,7 @@ export function LoginModal({
                   setAccountType(e.target.value);
                   setAccount('');
                   setError('');
+                  setErrorCode(undefined);
                 }}
               >
                 <option value="phone">手机号</option>
@@ -228,6 +269,55 @@ export function LoginModal({
               密码登录仍可能触发网易云安全验证。若提示风险或验证码，请先在官方客户端完成验证后再重试。
             </p>
           </form>
+        ) : method === 'session' ? (
+          <form className="login-form session-form" onSubmit={submitSession}>
+            <div className="session-instructions">
+              <h3>复用你在官网登录的会话</h3>
+              <ol>
+                <li>在浏览器打开网易云官网，正常登录并完成它要求的安全验证。</li>
+                <li>
+                  按 F12，打开「应用 / Application」→「存储 / Storage」→「Cookies」，选择
+                  music.163.com。
+                </li>
+                <li>
+                  找到 <code>MUSIC_U</code>，复制它的「值 / Value」，粘贴到下方。
+                </li>
+              </ol>
+              <a href="https://music.163.com/" target="_blank" rel="noreferrer">
+                打开网易云官网
+                <ExternalLink size={13} />
+              </a>
+            </div>
+            <fieldset disabled={busy}>
+              <label htmlFor="login-cookie">MUSIC_U 值或包含 MUSIC_U 的 Cookie</label>
+              <input
+                id="login-cookie"
+                type="password"
+                autoComplete="off"
+                value={cookie}
+                onChange={(e) => setCookie(e.target.value)}
+                placeholder="只粘贴到本机工具，不要发送到聊天中"
+                required
+              />
+              {error && (
+                <div className="login-error" role="alert">
+                  {error}
+                </div>
+              )}
+              <button
+                className="button primary login-submit"
+                type="submit"
+                disabled={busy || !cookie.trim()}
+              >
+                <LockKeyhole size={15} />
+                {busy ? '正在验证会话…' : '验证并连接'}
+              </button>
+            </fieldset>
+            <p className="login-hint">
+              Cookie
+              等同登录凭证，验证成功后保存在本机。这个入口复用已登录会话，不保证消除数据接口自身的风控限制。
+            </p>
+          </form>
         ) : (
           <>
             <div className="qr-box">
@@ -242,6 +332,16 @@ export function LoginModal({
               {busy ? '生成中…' : qr ? '重新生成二维码' : '生成登录二维码'}
             </button>
           </>
+        )}
+        {errorCode === -462 && method !== 'session' && (
+          <div className="login-risk-help" role="status">
+            <p>
+              网易云限制了本次请求（-462），可能需要安全验证或稍后重试。可以先在官网登录并完成验证，再复用网页登录会话。
+            </p>
+            <button className="button secondary" onClick={() => switchMethod('session')}>
+              使用网页登录会话
+            </button>
+          </div>
         )}
       </section>
     </div>

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { passwordRequest, passwordLogin } from '../server/auth.js';
+import { passwordRequest, passwordLogin, sessionCookie, sessionLogin } from '../server/auth.js';
+import { upstreamError } from '../server/errors.js';
 import type { Upstream } from '../server/upstream.js';
 
 test('手机号和网易邮箱使用对应接口，密码不进入上游参数，保留密码中的空格', () => {
@@ -69,5 +70,49 @@ test('密码错误或凭证验证失败时保留当前会话，不自动重复�
     throw new Error('需要安全验证');
   };
   await assert.rejects(passwordLogin(api, input), /需要安全验证/);
+  assert.equal(api.cookie, 'old-cookie');
+});
+
+test('保留 -462 与嵌套风控原因，不重复包装错误码', () => {
+  const error = upstreamError({
+    status: 400,
+    body: { code: -462, data: { blockText: '请完成安全验证' } },
+  });
+  assert.equal(error.code, -462);
+  assert.equal(error.message, '-462 · 请完成安全验证');
+  assert.equal(upstreamError(error), error);
+  const crowded = upstreamError({ body: { code: -462, message: '网络太拥挤，请稍候再试。' } });
+  assert.ok(crowded.message.includes('网络太拥挤'));
+});
+
+test('支持 MUSIC_U 原值与完整 Cookie，只保留会话所需字段', () => {
+  assert.equal(sessionCookie(' test-token== '), 'MUSIC_U=test-token==');
+  assert.equal(
+    sessionCookie('Cookie: analytics=ignored; MUSIC_U=test-token==; __csrf=test-csrf'),
+    'MUSIC_U=test-token==; __csrf=test-csrf',
+  );
+  assert.throws(() => sessionCookie('__csrf=only-csrf; analytics=ignored'), /未找到有效/);
+  assert.throws(() => sessionCookie('MUSIC_U='), /未找到有效/);
+});
+
+test('导入会话只验证凭证，不调用登录接口；验证失败保留原会话', async () => {
+  let attempts = 0;
+  const profile = { userId: '123', nickname: '测试', avatarUrl: '' };
+  const api = {
+    cookie: 'old-cookie',
+    profile: async (cookie: string) => {
+      attempts++;
+      assert.equal(cookie, 'MUSIC_U=test-token');
+      return profile;
+    },
+  } as unknown as Upstream;
+  const session = await sessionLogin(api, 'test-token');
+  assert.equal(session.profile, profile);
+  assert.equal(api.cookie, 'old-cookie');
+  assert.equal(attempts, 1);
+  api.profile = async () => {
+    throw new Error('登录已失效');
+  };
+  await assert.rejects(sessionLogin(api, 'expired-token'), /登录已失效/);
   assert.equal(api.cookie, 'old-cookie');
 });

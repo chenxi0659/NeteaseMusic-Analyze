@@ -36,3 +36,29 @@ export async function passwordLogin(api: Upstream, input: Parameters<typeof pass
   const profile = await api.profile(body.cookie);
   return { cookie: body.cookie, profile };
 }
+
+export function sessionCookie(input: unknown) {
+  if (typeof input !== 'string' || !input.trim()) throw new Error('请粘贴 MUSIC_U 或 Cookie');
+  const text = input.trim().replace(/^Cookie:\s*/i, '');
+  const values = new Map<string, string>(
+    text.split(/[;\r\n]+/).flatMap((part): [string, string][] => {
+      const index = part.indexOf('=');
+      return index <= 0 ? [] : [[part.slice(0, index).trim(), part.slice(index + 1).trim()]];
+    }),
+  );
+  const musicU = values.has('MUSIC_U')
+    ? values.get('MUSIC_U')
+    : /^[^;\s=]+={0,2}$/.test(text)
+      ? text
+      : '';
+  if (!musicU || /[;\s]/.test(musicU))
+    throw new Error('未找到有效的 MUSIC_U，请复制官网 Cookie 中的 MUSIC_U 值');
+  const csrf = values.get('__csrf');
+  return `MUSIC_U=${musicU}${csrf ? `; __csrf=${csrf}` : ''}`;
+}
+
+export async function sessionLogin(api: Upstream, input: unknown) {
+  const cookie = sessionCookie(input);
+  const profile = await api.profile(cookie);
+  return { cookie, profile };
+}

@@ -11,7 +11,7 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
     headers: { 'Content-Type': 'application/json', ...options?.headers },
   });
   const body = await result.json();
-  if (!result.ok) throw new Error(body.error || '请求失败');
+  if (!result.ok) throw Object.assign(new Error(body.error || '请求失败'), { code: body.code });
   return body;
 }
 export const post = <T = any>(path: string, body: unknown = {}) =>

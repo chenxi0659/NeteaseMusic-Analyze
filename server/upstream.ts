@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
+import { upstreamError } from './errors.js';
 
 // Node API calls avoid exposing a second HTTP service or forwarding credentials to the browser.
 const require = createRequire(import.meta.url);
@@ -29,17 +30,11 @@ export class Upstream {
       const body = result.body;
       const code = body?.code ?? body?.data?.code;
       if (typeof code === 'number' && code !== 200 && !(code >= 800 && code <= 803)) {
-        throw new Error(
-          `${code} · ${body.message || body.msg || body.data?.message || '接口未返回可用数据'}`,
-        );
+        throw upstreamError({ body });
       }
       return body;
     } catch (e: any) {
-      throw new Error(
-        e.body
-          ? `${e.body.code || e.status} · ${e.body.message || e.body.msg || '接口请求失败'}`
-          : e.message || '接口请求失败',
-      );
+      throw upstreamError(e);
     }
   }
   async profile(cookie = this.cookie) {

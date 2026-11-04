@@ -8,7 +8,7 @@ import { Collector, historySpecs, type RequestSpec } from './sync.js';
 import { sources } from './catalog.js';
 import { demoData } from './demo.js';
 import { fetchPlaylist, listPlaylists, playlistMarkdown, playlistExcel } from './playlists.js';
-import { passwordLogin } from './auth.js';
+import { passwordLogin, sessionLogin } from './auth.js';
 
 const dataDir = resolve(process.env.DATA_DIR || 'data');
 mkdirSync(dataDir, { recursive: true });
@@ -128,7 +128,25 @@ app.post('/api/auth/password', async (req, res) => {
     store.set('profile', session.profile);
     res.json({ profile: session.profile });
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    res.status(400).json({ error: e.message, code: e.code });
+  }
+});
+app.post('/api/auth/session', async (req, res) => {
+  if (collector.running) {
+    res.status(409).json({ error: '请等待当前同步结束后切换账号' });
+    return;
+  }
+  try {
+    const session = await sessionLogin(api, req.body?.cookie);
+    if (collector.running) {
+      res.status(409).json({ error: '同步任务已经开始，请结束后重新连接' });
+      return;
+    }
+    api.setCookie(session.cookie);
+    store.set('profile', session.profile);
+    res.json({ profile: session.profile });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message, code: e.code });
   }
 });
 app.post('/api/auth/check', async (req, res) => {
@@ -276,7 +294,7 @@ if (existsSync(resolve('dist/client/index.html'))) {
   app.get('/{*path}', (_req, res) => res.sendFile(resolve('dist/client/index.html')));
 }
 app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  res.status(500).json({ error: error.message || '操作失败' });
+  res.status(500).json({ error: error.message || '操作失败', code: error.code });
 });
 const port = Number(process.env.PORT || 3001);
 const server = app.listen(port, '127.0.0.1', () =>
