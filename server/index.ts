@@ -8,6 +8,7 @@ import { Collector, historySpecs, type RequestSpec } from './sync.js';
 import { sources } from './catalog.js';
 import { demoData } from './demo.js';
 import { fetchPlaylist, listPlaylists, playlistMarkdown, playlistExcel } from './playlists.js';
+import { passwordLogin } from './auth.js';
 
 const dataDir = resolve(process.env.DATA_DIR || 'data');
 mkdirSync(dataDir, { recursive: true });
@@ -112,6 +113,24 @@ app.post('/api/auth/qr', async (_req, res) => {
   const image = await api.call('login_qr_create', { key, qrimg: true }, false);
   res.json({ key, image: image.data.qrimg });
 });
+app.post('/api/auth/password', async (req, res) => {
+  if (collector.running) {
+    res.status(409).json({ error: '请等待当前同步结束后切换账号' });
+    return;
+  }
+  try {
+    const session = await passwordLogin(api, req.body || {});
+    if (collector.running) {
+      res.status(409).json({ error: '同步任务已经开始，请结束后重新登录' });
+      return;
+    }
+    api.setCookie(session.cookie);
+    store.set('profile', session.profile);
+    res.json({ profile: session.profile });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
 app.post('/api/auth/check', async (req, res) => {
   if (collector.running) {
     res.status(409).json({ error: '请等待当前同步结束后切换账号' });
@@ -123,17 +142,14 @@ app.post('/api/auth/check', async (req, res) => {
     false,
   );
   if (body.code === 803 && body.cookie) {
-    const old = api.cookie;
-    api.cookie = body.cookie;
-    try {
-      const p = await api.profile();
-      api.setCookie(body.cookie);
-      store.set('profile', p);
-      res.json({ code: 803, profile: p });
-    } catch (e) {
-      api.cookie = old;
-      throw e;
+    const p = await api.profile(body.cookie);
+    if (collector.running) {
+      res.status(409).json({ error: '同步任务已经开始，请结束后重新登录' });
+      return;
     }
+    api.setCookie(body.cookie);
+    store.set('profile', p);
+    res.json({ code: 803, profile: p });
   } else res.json({ code: body.code, message: body.message });
 });
 app.post('/api/auth/verify', requireLogin, async (_req, res) => {
@@ -220,15 +236,13 @@ app.put('/api/settings', (req, res) => {
   res.json(collector.settings());
 });
 app.get('/api/export', requireLogin, (_req, res) => {
-  res
-    .attachment('listening-data.json')
-    .json({
-      version: 1,
-      exportedAt: Date.now(),
-      profile: profile(),
-      captures: store.captures(uid()),
-      observations: store.observations(uid()),
-    });
+  res.attachment('listening-data.json').json({
+    version: 1,
+    exportedAt: Date.now(),
+    profile: profile(),
+    captures: store.captures(uid()),
+    observations: store.observations(uid()),
+  });
 });
 app.get('/api/backup', requireLogin, async (_req, res) => {
   const file = join(dataDir, 'backup.sqlite');

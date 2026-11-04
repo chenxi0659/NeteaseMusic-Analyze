@@ -7,17 +7,19 @@
 需要 **Node.js 24 或更高版本**。
 
 ```powershell
-npm ci
-npm run dev
+npm.cmd ci
+npm.cmd run dev
 ```
 
-打开 <http://127.0.0.1:5173>，点击「连接网易云」生成二维码，使用网易云音乐 App 扫码确认，再点击「同步数据」。页面上的「查看演示」使用合成数据，不会写入个人数据库。
+打开 <http://127.0.0.1:5173>，点击「连接网易云」，使用手机号＋密码或网易邮箱＋密码登录，也可以切换为扫码登录，再点击「同步数据」。页面上的「查看演示」使用合成数据，不会写入个人数据库。Windows PowerShell 中使用 `npm.cmd`，可以避免 `npm.ps1` 被执行策略拦截；其他终端也可使用 `npm`。
+
+密码仅用于本次登录，不写入数据库、文件或日志；上游接口需要的 MD5 摘要由本机后端生成。成功后只保存会话 Cookie。密码登录同样可能触发网易云安全验证，不保证消除扫码时的风险提示；界面会显示接口返回的错误，不会自动重复尝试登录。
 
 生产方式运行：
 
 ```powershell
-npm run build
-npm start
+npm.cmd run build
+npm.cmd start
 ```
 
 随后打开 <http://127.0.0.1:3001>。服务默认只监听本机地址。
@@ -86,12 +88,12 @@ Excel 文件包含冻结表头、筛选、歌曲链接、可排序的条目时�
 ```powershell
 $env:DATA_DIR = 'E:\MusicAnalyzeData'
 $env:PORT = '3001'
-npm start
+npm.cmd start
 ```
 
 开发服务器默认代理后端的 3001 端口；修改开发端口时需同步调整 `vite.config.ts`。
 
-恢复备份：先停止服务，保留旧数据库及其 `-wal` / `-shm` 文件到其他目录，再将备份复制为 `data/music.sqlite`，然后启动。账号凭证仍需由本机保存或重新扫码。
+恢复备份：先停止服务，保留旧数据库及其 `-wal` / `-shm` 文件到其他目录，再将备份复制为 `data/music.sqlite`，然后启动。账号凭证仍需由本机保存或重新登录。
 
 ## 开发结构与验证
 
@@ -107,8 +109,8 @@ flowchart LR
 `server/` 为 Express、采集、SQLite 和文件导出；`src/` 为 React 与 ECharts 页面；`shared/` 包含类型和统计函数。
 
 ```powershell
-npm run check
-npm run build
+npm.cmd run check
+npm.cmd run build
 ```
 
 只保留关键路径检查：字段解析、计数与分数分离、合作权重、快照对比、记录去重与账号隔离、历史周期、歌单补全与 Excel／Markdown 导出。没有引入全量测试框架。

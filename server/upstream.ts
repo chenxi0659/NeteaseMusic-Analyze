@@ -42,10 +42,10 @@ export class Upstream {
       );
     }
   }
-  async profile() {
-    const body = await this.call('login_status');
+  async profile(cookie = this.cookie) {
+    const body = await this.call('login_status', { cookie }, false);
     const data = body.data || body;
-    if (!data.profile || !data.account) throw new Error('登录已失效，请重新扫码');
+    if (!data.profile || !data.account) throw new Error('登录已失效，请重新登录');
     return {
       userId: String(data.profile.userId || data.account.id),
       nickname: data.profile.nickname,

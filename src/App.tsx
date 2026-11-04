@@ -25,6 +25,7 @@ import { ActivityPage } from './pages/Activity';
 import { ReportsPage } from './pages/Reports';
 import { DataPage } from './pages/Data';
 import { PlaylistsPage } from './pages/Playlists';
+import { LoginModal } from './LoginModal';
 
 const pages = [
   {
@@ -315,10 +316,10 @@ export function App() {
                   </div>
                   <div>
                     <h2>从你喜欢的音乐开始。</h2>
-                    <p>扫码连接网易云，查看排行与报告，并持续积累自己的听歌档案。</p>
+                    <p>连接网易云，查看排行与报告，并持续积累自己的听歌档案。</p>
                     <div>
                       <button className="button primary" onClick={() => setLogin(true)}>
-                        扫码连接
+                        连接账号
                         <ArrowUpRight size={15} />
                       </button>
                       <button className="button text" onClick={() => changeDemo(true)}>
@@ -372,128 +373,6 @@ export function App() {
           profile={demo ? null : state?.profile}
         />
       )}
-    </div>
-  );
-}
-function LoginModal({
-  onClose,
-  onSuccess,
-  notify,
-  profile,
-}: {
-  onClose: () => void;
-  onSuccess: () => void;
-  notify: (s: string) => void;
-  profile: AppState['profile'] | undefined;
-}) {
-  const [qr, setQr] = useState<{ key: string; image: string } | null>(null);
-  const [message, setMessage] = useState('点击生成二维码，使用网易云音乐 App 扫码');
-  const [busy, setBusy] = useState(false);
-  const [expired, setExpired] = useState(false);
-  useEffect(() => {
-    if (!qr || expired) return;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      try {
-        const result = await post('/auth/check', { key: qr.key });
-        if (stopped) return;
-        if (result.code === 803) {
-          onSuccess();
-          return;
-        }
-        if (result.code === 800) {
-          setExpired(true);
-          setMessage('二维码已过期，请重新生成');
-          return;
-        }
-        setMessage(
-          result.code === 802 ? '已扫码，请在手机上确认登录' : '等待扫码，请使用网易云音乐 App',
-        );
-      } catch (e: any) {
-        if (!stopped) {
-          setMessage(e.message);
-          setExpired(true);
-          return;
-        }
-      }
-      if (!stopped) timer = setTimeout(poll, 4000);
-    };
-    timer = setTimeout(poll, 4000);
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-    };
-  }, [qr, expired]);
-  async function create() {
-    setBusy(true);
-    try {
-      setQr(await post('/auth/qr'));
-      setExpired(false);
-      setMessage('等待扫码，请使用网易云音乐 App');
-    } catch (e: any) {
-      setMessage(e.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <section
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="账号连接"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button className="modal-close" aria-label="关闭" onClick={onClose}>
-          <X size={20} />
-        </button>
-        <div className="eyebrow">CONNECT YOUR MUSIC</div>
-        <h2>{profile ? `你好，${profile.nickname}` : '连接你的网易云'}</h2>
-        <p>登录凭证由本机后端保存，页面只接收登录状态。</p>
-        {profile && (
-          <div className="button-row">
-            <button
-              className="button secondary"
-              onClick={async () => {
-                try {
-                  await post('/auth/verify');
-                  notify('登录状态有效');
-                } catch (e: any) {
-                  notify(e.message);
-                }
-              }}
-            >
-              验证登录状态
-            </button>
-            <button
-              className="button secondary"
-              onClick={async () => {
-                try {
-                  await post('/auth/logout');
-                  onSuccess();
-                } catch (e: any) {
-                  notify(e.message);
-                }
-              }}
-            >
-              退出登录
-            </button>
-          </div>
-        )}
-        <div className="qr-box">
-          {qr && !expired ? (
-            <img src={qr.image} alt="网易云音乐登录二维码" />
-          ) : (
-            <Disc3 size={55} strokeWidth={1} />
-          )}
-        </div>
-        <p className="qr-message">{message}</p>
-        <button className="button primary" disabled={busy} onClick={create}>
-          {busy ? '生成中…' : qr ? '重新生成二维码' : '生成登录二维码'}
-        </button>
-      </section>
     </div>
   );
 }

@@ -10,7 +10,7 @@
     "dev": "concurrently -k -n api,web \"tsx watch server/index.ts\" \"vite --host 127.0.0.1\"",
     "build": "tsc --noEmit -p tsconfig.app.json && tsc -p tsconfig.server.json && vite build",
     "start": "node dist/server/index.js",
-    "check": "tsx --test checks/core.test.ts"
+    "check": "tsx --test checks/*.test.ts"
   },
   "dependencies": {
     "@neteasecloudmusicapienhanced/api": "4.41.1",
