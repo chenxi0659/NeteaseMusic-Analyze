@@ -3,6 +3,7 @@ import { rowsOf, observationsOf, trackOf } from './normalize.js';
 import type { Settings, Source } from '../shared/types.js';
 import { Store } from './store.js';
 import { Upstream } from './upstream.js';
+import { responsePeriod } from '../shared/reports.js';
 
 export interface RequestSpec {
   sourceId: string;
@@ -58,6 +59,7 @@ export class Collector {
         if (source.method === 'user_record' || source.method === 'likelist')
           params.uid = profile.userId;
         if (source.id === 'recent') params.limit = this.settings().recentLimit;
+        if (source.id === 'annual') params.year = String(params.year);
         if (source.id === 'report-year' && !params.endTime)
           params.endTime = new Date(
             `${Number(chinaDate().slice(0, 4)) - 1}-12-31T00:00:00+08:00`,
@@ -72,6 +74,7 @@ export class Collector {
         };
         try {
           const payload = await this.upstream.call(source.method, params);
+          input.period = responsePeriod(payload, input.period);
           let rows = source.kind === 'rank' || source.kind === 'recent' ? rowsOf(payload) : [];
           const missing = [...new Set(rows.filter((r) => !details.has(r.id)).map((r) => r.id))];
           for (let offset = 0; offset < missing.length; offset += 200) {

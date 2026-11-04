@@ -37,7 +37,7 @@ export const sources: Source[] = [
   },
   {
     id: 'foot-week',
-    title: '本周 Top 20',
+    title: '周歌曲 Top 20',
     method: 'listen_data_song_play_rank',
     path: '/listen/data/song/play/rank',
     kind: 'rank',
@@ -46,7 +46,7 @@ export const sources: Source[] = [
   },
   {
     id: 'foot-month',
-    title: '本月 Top 20',
+    title: '月歌曲 Top 20',
     method: 'listen_data_song_play_rank',
     path: '/listen/data/song/play/rank',
     kind: 'rank',

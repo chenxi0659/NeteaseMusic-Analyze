@@ -23,7 +23,7 @@ export async function saveDownload(path: string, notify: (message: string) => vo
     throw e;
   }
 }
-export function DataPage({ state, index, demo, reload, notify }: PageContext) {
+export function DataPage({ state, index, demo, reload, notify, insights }: PageContext) {
   const [interval, setInterval] = useState(state.settings.intervalMinutes);
   const [limit, setLimit] = useState(state.settings.recentLimit);
   const [months, setMonths] = useState(6);
@@ -274,9 +274,13 @@ export function DataPage({ state, index, demo, reload, notify }: PageContext) {
                             <p>{latest.error}</p>
                           </details>
                         ) : (
-                          <span className="status success">
+                          <span
+                            className={`status ${insights?.coverage.find((c) => c.id === latest.id)?.hasData === false ? 'warning' : 'success'}`}
+                          >
                             <Check size={12} />
-                            已采集
+                            {insights?.coverage.find((c) => c.id === latest.id)?.hasData === false
+                              ? '已采集 · 空报告'
+                              : '已采集'}
                           </span>
                         )
                       ) : (

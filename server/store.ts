@@ -2,7 +2,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { Capture, RankRow, SyncJob } from '../shared/types.js';
-import { withoutCredentials } from './normalize.js';
+import { withoutCredentials, rowsOf } from './normalize.js';
+import { responsePeriod } from '../shared/reports.js';
 
 export class Store {
   db: DatabaseSync;
@@ -115,11 +116,13 @@ export class Store {
           id: r.id,
           source_id: r.source_id,
           title: r.title,
-          period: r.period,
+          period: responsePeriod(JSON.parse(r.payload), r.period),
           fetched_at: r.fetched_at,
           params: JSON.parse(r.params),
           payload: JSON.parse(r.payload),
-          rows: JSON.parse(r.rows_json),
+          rows: JSON.parse(r.rows_json).length
+            ? JSON.parse(r.rows_json)
+            : rowsOf(JSON.parse(r.payload)),
           error: r.error,
         }
       : undefined;
@@ -130,11 +133,41 @@ export class Store {
         `WITH indexed AS (
       SELECT *,ROW_NUMBER() OVER (PARTITION BY source_id,period,error IS NULL ORDER BY id DESC) AS n
       FROM captures WHERE user_id=?
-    ) SELECT id,source_id,title,period,fetched_at,params,error,json_array_length(rows_json) AS row_count
+    ) SELECT id,source_id,title,period,fetched_at,params,error,
+      CASE WHEN json_array_length(rows_json)>0 THEN json_array_length(rows_json) ELSE COALESCE(json_array_length(json_extract(payload,'$.data.songItems')),json_array_length(json_extract(payload,'$.data.songDTOs')),0) END AS row_count,
+      json_extract(payload,'$.data.startTime') AS start_time,json_extract(payload,'$.data.endTime') AS end_time,json_extract(payload,'$.data.type') AS report_type
       FROM indexed WHERE n=1 OR fetched_at>=? ORDER BY id DESC`,
       )
       .all(userId, Date.now() - 2 * 86400000)
-      .map((r: any) => ({ ...r, params: JSON.parse(r.params) }));
+      .map((r: any) => ({
+        ...r,
+        period: responsePeriod(
+          { data: { startTime: r.start_time, endTime: r.end_time, type: r.report_type } },
+          r.period,
+        ),
+        params: JSON.parse(r.params),
+      }));
+  }
+  analysisCaptures(userId: string): Capture[] {
+    return this.db
+      .prepare(
+        `WITH ranked AS (
+      SELECT *,ROW_NUMBER() OVER (PARTITION BY source_id,COALESCE(json_extract(params,'$.year'),json_extract(payload,'$.data.startTime'),period) ORDER BY id DESC) AS n
+      FROM captures WHERE user_id=? AND error IS NULL AND source_id IN ('report-week','report-month','report-year','realtime-week','realtime-month','year-footprint','annual','style','total','likes','recent-list')
+    ) SELECT * FROM ranked WHERE n=1 ORDER BY id DESC`,
+      )
+      .all(userId)
+      .map((r: any) => ({
+        id: r.id,
+        source_id: r.source_id,
+        title: r.title,
+        period: r.period,
+        fetched_at: r.fetched_at,
+        params: JSON.parse(r.params),
+        payload: JSON.parse(r.payload),
+        rows: [],
+        error: null,
+      }));
   }
   observations(userId: string) {
     return this.db

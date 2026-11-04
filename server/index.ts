@@ -9,6 +9,7 @@ import { sources } from './catalog.js';
 import { demoData } from './demo.js';
 import { fetchPlaylist, listPlaylists, playlistMarkdown, playlistExcel } from './playlists.js';
 import { passwordLogin, sessionLogin } from './auth.js';
+import { buildInsights } from '../shared/reports.js';
 
 const dataDir = resolve(process.env.DATA_DIR || 'data');
 mkdirSync(dataDir, { recursive: true });
@@ -48,6 +49,10 @@ const requireLogin: express.RequestHandler = (_req, res, next) => {
   }
   next();
 };
+
+app.get('/api/insights', (req, res) =>
+  res.json(buildInsights(req.query.demo === '1' ? demo.captures : store.analysisCaptures(uid()))),
+);
 
 app.get('/api/state', (req, res) => {
   const isDemo = req.query.demo === '1';

@@ -5,8 +5,29 @@ import { Chart, barOption } from '../Chart';
 import { Empty, Panel, type PageContext } from '../App';
 import { date, num } from '../api';
 import { Cover, Stat } from './Analysis';
+import { OfficialActivity } from './OfficialActivity';
 
-export function ActivityPage({ observations, state }: PageContext) {
+export function ActivityPage(ctx: PageContext) {
+  const [view, setView] = useState('official');
+  return (
+    <>
+      <div className="view-switch">
+        <button className={view === 'official' ? 'active' : ''} onClick={() => setView('official')}>
+          官方每日时长
+        </button>
+        <button
+          className={view === 'observations' ? 'active' : ''}
+          onClick={() => setView('observations')}
+        >
+          最近播放观察
+        </button>
+      </div>
+      {view === 'official' ? <OfficialActivity {...ctx} /> : <ObservedActivityPage {...ctx} />}
+    </>
+  );
+}
+
+function ObservedActivityPage({ observations, state }: PageContext) {
   const [days, setDays] = useState(30);
   const now = Date.now();
   const data = useMemo(

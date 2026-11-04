@@ -1,17 +1,17 @@
 import type { RankRow, Track } from '../shared/types.js';
 
 export function trackOf(raw: any): Track | null {
-  if (!raw || !raw.id || !(raw.name || raw.songName)) return null;
+  if (!raw || !(raw.id || raw.songId) || !(raw.name || raw.songName)) return null;
   return {
-    id: String(raw.id),
+    id: String(raw.id || raw.songId),
     name: raw.name || raw.songName,
     artists: (raw.ar || raw.artists || raw.artistList || []).map((a: any) => ({
-      id: String(a.id ?? a.name),
-      name: a.name,
+      id: String(a.id ?? a.artistId ?? a.name ?? a.artistName),
+      name: a.name || a.artistName,
     })),
-    album: raw.al?.name || raw.album?.name || '',
+    album: raw.al?.name || raw.album?.name || raw.albumName || '',
     albumId: String(raw.al?.id || raw.album?.id || ''),
-    cover: raw.al?.picUrl || raw.album?.picUrl || '',
+    cover: raw.al?.picUrl || raw.album?.picUrl || raw.picUrl || '',
     duration: finite(raw.dt ?? raw.duration),
     publishTime: finite(raw.publishTime),
     popularity: finite(raw.pop ?? raw.popularity),
@@ -32,6 +32,8 @@ export function rowsOf(payload: any): RankRow[] {
       root.songPlayRank ??
       root.songPlayRankList ??
       root.songList ??
+      root.songItems ??
+      root.songDTOs ??
       root.songs ??
       root.records ??
       [];

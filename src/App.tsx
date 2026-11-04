@@ -5,6 +5,7 @@ import {
   ArrowUpRight,
   AudioLines,
   BarChart3,
+  CalendarRange,
   ChevronRight,
   Database,
   Disc3,
@@ -26,6 +27,9 @@ import { ReportsPage } from './pages/Reports';
 import { DataPage } from './pages/Data';
 import { PlaylistsPage } from './pages/Playlists';
 import { LoginModal } from './LoginModal';
+import { OverviewPage } from './pages/Overview';
+import { AnnualPage } from './pages/Annual';
+import type { Insights } from '../shared/reports';
 
 const pages = [
   {
@@ -33,6 +37,12 @@ const pages = [
     label: '听歌总览',
     icon: LayoutDashboard,
     subtitle: '每一首听过的歌，都留下自己的轨迹。',
+  },
+  {
+    id: 'annual',
+    label: '年度分析',
+    icon: CalendarRange,
+    subtitle: '把历年的陪伴，整理成一份看得懂的音乐档案。',
   },
   {
     id: 'library',
@@ -69,6 +79,7 @@ export interface PageContext {
   state: AppState;
   index: CaptureIndex[];
   observations: Observation[];
+  insights: Insights | null;
   demo: boolean;
   reload: () => Promise<void>;
   notify: (message: string) => void;
@@ -127,6 +138,7 @@ export function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [index, setIndex] = useState<CaptureIndex[]>([]);
   const [observations, setObservations] = useState<Observation[]>([]);
+  const [insights, setInsights] = useState<Insights | null>(null);
   const [toast, setToast] = useState('');
   const [login, setLogin] = useState(false);
   const [error, setError] = useState('');
@@ -137,15 +149,17 @@ export function App() {
   const suffix = demo ? '?demo=1' : '';
   const reload = useCallback(async () => {
     try {
-      const [s, c, o] = await Promise.all([
+      const [s, c, o, insights] = await Promise.all([
         request<AppState>(`/state${suffix}`),
         request<CaptureIndex[]>(`/captures${suffix}`),
         request<Observation[]>(`/observations${suffix}`),
+        request<Insights>(`/insights${suffix}`),
       ]);
       if (mode.current !== demo) return;
       setState(s);
       setIndex(c);
       setObservations(o);
+      setInsights(insights);
       setError('');
     } catch (e: any) {
       setError(e.message);
@@ -155,6 +169,7 @@ export function App() {
     setState(null);
     setIndex([]);
     setObservations([]);
+    setInsights(null);
     void reload();
   }, [reload]);
   useEffect(() => {
@@ -190,7 +205,7 @@ export function App() {
     }
   }
   const ctx: PageContext | null = state
-    ? { state, index, observations, demo, reload, notify: setToast }
+    ? { state, index, observations, insights, demo, reload, notify: setToast }
     : null;
   return (
     <div className="app-shell">
@@ -202,7 +217,7 @@ export function App() {
           <span>
             听迹<small>MUSIC ANALYZE</small>
           </span>
-          <span className="version">v0.1</span>
+          <span className="version">v0.2</span>
         </a>
         <div className="nav-label">我的音乐档案</div>
         <nav>
@@ -330,7 +345,9 @@ export function App() {
                   </div>
                 </div>
               )}
-              {['overview', 'library'].includes(current.id) && (
+              {current.id === 'overview' && <OverviewPage {...ctx} />}
+              {current.id === 'annual' && <AnnualPage {...ctx} />}
+              {current.id === 'library' && (
                 <AnalysisPage {...ctx} page={current.id} search={search} setSearch={setSearch} />
               )}
               {current.id === 'activity' && <ActivityPage {...ctx} />}

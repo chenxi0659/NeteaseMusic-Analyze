@@ -5,8 +5,26 @@ import type { Capture } from '../../shared/types';
 import { Chart } from '../Chart';
 import { Empty, Panel, type PageContext } from '../App';
 import { request, date, download, num } from '../api';
+import { CycleReports } from './Cycles';
 
-export function ReportsPage({ index, state, demo, notify }: PageContext) {
+export function ReportsPage(ctx: PageContext) {
+  const [view, setView] = useState('analysis');
+  return (
+    <>
+      <div className="view-switch">
+        <button className={view === 'analysis' ? 'active' : ''} onClick={() => setView('analysis')}>
+          分析报告
+        </button>
+        <button className={view === 'raw' ? 'active' : ''} onClick={() => setView('raw')}>
+          原始字段与导出
+        </button>
+      </div>
+      {view === 'analysis' ? <CycleReports {...ctx} /> : <RawReportsPage {...ctx} />}
+    </>
+  );
+}
+
+function RawReportsPage({ index, state, demo, notify }: PageContext) {
   const [source, setSource] = useState('report-month');
   const [selected, setSelected] = useState('latest');
   const [capture, setCapture] = useState<Capture | null>(null);
